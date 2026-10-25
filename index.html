@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MASTER PRINT ERP — Касса, CRM & Аналитика Полиграфии</title>
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+</head>
+<body>
+
+<!-- LOGIN SCREEN (Optional modal) -->
+<div class="modal-backdrop" id="loginBackdrop" style="z-index: 2000;">
+  <div class="modal-window" style="max-width: 420px; text-align: center;">
+    <img src="logo.png" style="width: 76px; height: 76px; border-radius: 18px; margin-bottom: 14px; box-shadow: 0 8px 24px rgba(220,38,38,0.3); border: 2px solid var(--primary-border)" alt="Master Print">
+    <h2 style="font-size: 22px; font-weight: 900; letter-spacing: -0.02em;">MASTER PRINT ERP</h2>
+    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Автоматический учёт выручки, заказов и кассы</p>
+    
+    <form onsubmit="handleLogin(event)" style="text-align: left;">
+      <div class="field">
+        <label>Роль в системе</label>
+        <select id="loginRole" onchange="updateLoginForm()">
+          <option value="admin">👑 Супер АДМИН</option>
+          <option value="cashier">💵 Кассир</option>
+          <option value="staff">👤 Сотрудник (Мастер)</option>
+        </select>
+      </div>
+
+      <div id="adminAuthFields">
+        <div class="field"><label>Логин</label><input id="adminLoginUser" value="907059595"></div>
+        <div class="field"><label>Пароль</label><input id="adminLoginPass" type="password" value="19951717"></div>
+      </div>
+
+      <div id="cashierAuthFields" style="display:none">
+        <div class="field"><label>Пароль Кассира</label><input id="cashierPassField" type="password" value="1234"></div>
+      </div>
+
+      <div id="staffAuthFields" style="display:none">
+        <div class="field"><label>Выберите сотрудника</label><select id="staffLoginSelect"></select></div>
+        <div class="field"><label>Пароль (по умолчанию 1234)</label><input id="staffPassField" type="password" value="1234"></div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; margin-top: 8px; font-size: 15px;">Войти в панель</button>
+      <div id="loginErrorMsg" style="color: var(--primary); font-size: 12px; font-weight: 700; margin-top: 10px; text-align: center; min-height: 18px;"></div>
+    </form>
+  </div>
+</div>
+
+<!-- CRM ORDER CREATION MODAL -->
+<div class="modal-backdrop" id="newOrderModal">
+  <div class="modal-window">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 style="font-size: 18px; font-weight: 800;">📦 Оформить Заказ в CRM</h3>
+      <button class="btn btn-icon" onclick="closeOrderModal()">✕</button>
+    </div>
+
+    <div class="field">
+      <label>Ответственный сотрудник</label>
+      <select id="modalOrderStaff"></select>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="field">
+        <label>Имя клиента</label>
+        <input id="modalOrderClient" placeholder="например: Дилшод" list="clientNamesDatalist">
+        <datalist id="clientNamesDatalist"></datalist>
+      </div>
+      <div class="field">
+        <label>Номер телефона</label>
+        <input id="modalOrderPhone" placeholder="+998 90 123-45-67">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Категория услуги</label>
+      <select id="modalOrderServiceType">
+        <option value="print">🖨 Печатные услуги (10% мастеру в ЗП)</option>
+        <option value="design">🎨 Дизайнерская услуга (100% мастеру)</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Наименование заказа</label>
+      <input id="modalOrderTitle" placeholder="например: Баннер 3х2м с люверсами">
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="field">
+        <label>Общая сумма (сум)</label>
+        <input type="number" min="0" id="modalOrderSum" placeholder="0" oninput="calcModalBalance()">
+      </div>
+      <div class="field">
+        <label>Аванс (сум)</label>
+        <input type="number" min="0" id="modalOrderAdvance" placeholder="0" oninput="calcModalBalance()">
+      </div>
+    </div>
+
+    <div style="background: var(--bg-card-subtle); padding: 12px 16px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <span style="font-size: 13px; font-weight: 600; color: var(--text-muted)">Остаток долга (при сдаче):</span>
+      <b id="modalOrderRestLabel" style="font-family: 'JetBrains Mono'; font-size: 16px; color: var(--primary);">0 сум</b>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="field">
+        <label>Дата дедлайна</label>
+        <input type="date" id="modalOrderDeadlineDate">
+      </div>
+      <div class="field">
+        <label>Время сдачи</label>
+        <input type="time" id="modalOrderDeadlineTime" value="18:00">
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+      <div class="field">
+        <label>Способ оплаты аванса</label>
+        <select id="modalOrderPayType" onchange="onModalPayTypeChange()">
+          <option value="cash">💵 Наличные (в кассу)</option>
+          <option value="click">💳 Click / Карта</option>
+          <option value="deposit">💰 Списать с депозита клиента</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Этап работы</label>
+        <select id="modalOrderStage">
+          <option value="in_progress">🟡 В работе</option>
+          <option value="design_stage">🎨 На этапе дизайна</option>
+          <option value="print_stage">🖨 На этапе печати</option>
+          <option value="ready">✅ Готов к выдаче</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="background: var(--bg-card-subtle); padding: 12px 16px; border-radius: 10px; border: 1px solid var(--border); margin-top: 10px;">
+      <div style="font-size: 12px; font-weight: 800; color: var(--primary); margin-bottom: 8px;">🏭 АВТО-СПИСАНИЕ МАТЕРИАЛА СО СКЛАДА (ОПЦИОНАЛЬНО):</div>
+      <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+        <div class="field" style="margin-bottom:0;">
+          <label>Материал со склада</label>
+          <select id="modalOrderInventorySelect"></select>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Кол-во для списания</label>
+          <input type="number" id="modalOrderInventoryQty" min="0" placeholder="0">
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
+      <button class="btn" onclick="closeOrderModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="submitCRMOrder()">Сохранить заказ</button>
+    </div>
+  </div>
+</div>
+
+<!-- THERMAL RECEIPT & INVOICE MODAL -->
+<div class="modal-backdrop" id="receiptModal">
+  <div class="modal-window" style="max-width: 440px; padding: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 style="font-size: 17px; font-weight: 800;">🖨 Квитанция / Чек заказа</h3>
+      <button class="btn btn-icon" onclick="closeReceiptModal()">✕</button>
+    </div>
+
+    <!-- Printable Receipt Content Area -->
+    <div id="printableReceiptArea" style="background: #ffffff; color: #000000; padding: 20px; border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.4; border: 1px dashed #cbd5e1;">
+      <!-- Populated dynamically by JS -->
+    </div>
+
+    <div style="display: flex; justify-content: space-between; gap: 10px; margin-top: 18px;">
+      <button class="btn" onclick="closeReceiptModal()">Закрыть</button>
+      <button class="btn btn-primary" style="padding: 10px 20px; font-weight: 800;" onclick="printActiveReceipt()">
+        🖨 Распечатать чек
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Z-REPORT MODAL -->
+<div class="modal-backdrop" id="zReportModal">
+  <div class="modal-window" style="max-width: 520px; padding: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 style="font-size: 18px; font-weight: 800;">🧾 Z-Отчёт закрытия кассовой смены</h3>
+      <button class="btn btn-icon" onclick="closeZReportModal()">✕</button>
+    </div>
+
+    <div id="zReportContentArea" style="background: var(--bg-card-subtle); padding: 18px; border-radius: 12px; font-size: 13px; border: 1px solid var(--border);">
+      <!-- Populated dynamically by JS -->
+    </div>
+
+    <div style="display: flex; justify-content: space-between; gap: 10px; margin-top: 18px;">
+      <button class="btn" onclick="closeZReportModal()">Закрыть</button>
+      <div style="display: flex; gap: 8px;">
+        <button class="btn btn-success" onclick="copyZReportText()">📋 Скопировать</button>
+        <button class="btn btn-primary" onclick="printZReport()">🖨 Печать отчёта</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP WRAPPER -->
+
+<!-- CLIENT NOTIFICATION MODAL -->
+
+
+
+<!-- CLIENT DEPOSIT TOPUP MODAL -->
+<div class="modal-backdrop" id="clientDepositModal">
+  <div class="modal-window" style="max-width: 420px; padding: 24px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 style="font-size: 18px; font-weight: 800;">💰 Пополнение депозита клиента</h3>
+      <button class="btn btn-icon" onclick="closeDepositModal()">✕</button>
+    </div>
+
+    <div class="field">
+      <label>Имя клиента</label>
+      <input type="text" id="depositClientName" readonly style="font-weight: 800; background: var(--bg-card-subtle);">
+    </div>
+
+    <div class="field">
+      <label>Сумма пополнения (сум)</label>
+      <input type="number" id="depositAmountInput" min="1000" step="1000" placeholder="например: 500000" style="font-size: 18px; font-weight: 800; color: var(--primary);">
+    </div>
+
+    <div class="field">
+      <label>Способ внесения</label>
+      <select id="depositPaymentType">
+        <option value="cash">💵 Наличные (в кассу)</option>
+        <option value="click">💳 Click / Карта</option>
+      </select>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
+      <button class="btn" onclick="closeDepositModal()">Отмена</button>
+      <button class="btn btn-success" style="font-weight:800;" onclick="submitClientDeposit()">+ Зачислить на баланс</button>
+    </div>
+  </div>
+</div>
+
+<div class="app-container" id="appMain" style="display: grid;">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand-section">
+      <img src="logo.png" class="brand-logo" alt="Logo">
+      <div class="brand-info">
+        <h1>MASTER PRINT</h1>
+        <span id="sidebarRoleTag">Супер АДМИН</span>
+      </div>
+    </div>
+
+    <button class="nav-item pos-highlight" onclick="navigateTo('express-pos')">
+      <span class="icon">⚡</span> 1. Быстрая Касса
+    </button>
+
+    <div class="nav-group">
+      <div class="nav-label">Управление заказами</div>
+      <button class="nav-item" data-route="orders" onclick="navigateTo('orders')">
+        <span class="icon">📦</span> CRM Заказов
+      </button>
+      <button class="nav-item" data-route="clients" onclick="navigateTo('clients')">
+        <span class="icon">👥</span> База клиентов
+      </button>
+      <button class="nav-item admin-cashier-view" data-route="daily" onclick="navigateTo('daily')">
+        <span class="icon">📅</span> Дневная касса
+      </button>
+      <button class="nav-item admin-cashier-view" data-route="monthly" onclick="navigateTo('monthly')">
+        <span class="icon">📆</span> Месячная выручка
+      </button>
+      <button class="nav-item admin-view" data-route="dashboard" onclick="navigateTo('dashboard')">
+        <span class="icon">📊</span> Годовая сводка
+      </button>
+    </div>
+
+    <div class="nav-group admin-cashier-view">
+      <div class="nav-label">Финансы, склад и кадры</div>
+      <button class="nav-item" data-route="inventory" onclick="navigateTo('inventory')">
+        <span class="icon">🏭</span> Склад и остатки
+      </button>
+      <button class="nav-item admin-view" data-route="payroll" onclick="navigateTo('payroll')">
+        <span class="icon">💰</span> Расчёт Зарплат
+      </button>
+      <button class="nav-item" data-route="expenses" onclick="navigateTo('expenses')">
+        <span class="icon">↘</span> Расходы и чеки
+      </button>
+      <button class="nav-item" data-route="debts" onclick="navigateTo('debts')">
+        <span class="icon">◎</span> Долги клиентов
+      </button>
+      <button class="nav-item admin-view" data-route="settings" onclick="navigateTo('settings')">
+        <span class="icon">⚙</span> Настройки
+      </button>
+    </div>
+
+    <div class="nav-group staff-view" style="display: none;">
+      <div class="nav-label">Кабинет Мастера</div>
+      <button class="nav-item" data-route="portal" onclick="navigateTo('portal')">
+        <span class="icon">💰</span> Моя Зарплата & Кабинет
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="user-badge-card" style="cursor: pointer;" onclick="openLoginModal()" title="Нажмите, чтобы переключить пользователя/роль">
+        <div class="user-avatar" id="sidebarAvatar">A</div>
+        <div class="user-details">
+          <div class="user-name" id="sidebarUserName">Администратор</div>
+          <div class="user-role" id="sidebarUserRole" style="font-size: 11px; color: var(--accent-emerald);">🔄 Сменить роль</div>
+        </div>
+      </div>
+      <button class="btn btn-icon btn-danger" onclick="logout()" title="Выйти / Сменить роль">🚪</button>
+    </div>
+  </aside>
+
+  <!-- MAIN AREA -->
+  <div class="main-wrapper">
+    <header class="topbar">
+      <div class="page-title">
+        <h2 id="topbarTitle">Годовая сводка</h2>
+        <p id="topbarSubtitle">Сводные финансовые показатели</p>
+      </div>
+
+      <div class="topbar-actions">
+        <div class="live-time-chip" id="cloudSyncIndicator" style="border-color: rgba(16,185,129,0.3); background: var(--accent-emerald-subtle); color: var(--accent-emerald);" title="Подключение к серверному бэкенду">
+          <div class="pulse-dot" id="cloudPulseDot" style="background: var(--accent-emerald);"></div>
+          <span id="cloudSyncText" style="font-weight: 800;">Облако: Синхронизировано</span>
+        </div>
+
+        <div class="live-time-chip">
+          <div class="pulse-dot"></div>
+          <span id="topbarLiveClock">00:00:00</span>
+        </div>
+
+        <button class="btn" style="padding: 6px 12px; font-size: 12.5px; font-weight: 700;" onclick="syncWithTelegramBot()" title="Мгновенно обновить расходы и заказы ">🔄 Обновить данные</button>
+
+        <button class="btn btn-primary" onclick="openOrderModal()">📦 + Заказ</button>
+
+        <div class="period-badge admin-cashier-view">
+          <input type="number" id="globalYear" min="2020" max="2099" onchange="onPeriodChange()">
+          <select id="globalMonth" onchange="onPeriodChange()"></select>
+        </div>
+
+        <button class="btn btn-icon" onclick="toggleTheme()" id="themeToggleBtn" title="Переключить тему">🌓</button>
+      </div>
+    </header>
+
+    <main class="content-area">
+      <!-- 1. EXPRESS POS -->
+      <section class="page-view" id="view-express-pos">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <h3 style="font-size: 18px; font-weight: 800;">⚡ Быстрая Касса Экспресс-Услуг</h3>
+            <p style="font-size: 12.5px; color: var(--text-muted);">Быстрая печать, ксерокопия, фото и ламинация в 1 клик</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-size: 13px; font-weight: 700;">Мастер:</label>
+            <select id="posStaffSelect" style="padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); font-weight: 700;"></select>
+          </div>
+        </div>
+
+        <div class="category-chips-bar" id="posCategoryChips">
+          <button class="chip active" onclick="filterPosCategory('all')">Все услуги</button>
+          <button class="chip" onclick="filterPosCategory('print')">🖨 Печать и Копия</button>
+          <button class="chip" onclick="filterPosCategory('photo')">📸 Фото и Документы</button>
+          <button class="chip" onclick="filterPosCategory('postpress')">📜 Постпресс</button>
+          <button class="chip" onclick="filterPosCategory('design')">🎨 Дизайн</button>
+        </div>
+
+        <div class="pos-layout-grid">
+          <div>
+            <div class="pos-grid" id="posItemsGrid"></div>
+            
+            <div class="card" style="margin-top: 20px;">
+              <div class="card-header"><h3>Недавние экспресс-продажи за сегодня</h3></div>
+              <div class="table-responsive"><table id="recentPosTable"></table></div>
+            </div>
+          </div>
+
+          <div>
+            <div class="pos-bill-card">
+              <div class="pos-bill-header">
+                <div>
+                  <h4 id="posActiveTitle" style="font-size: 16px; font-weight: 800;">📄 Выберите услугу слева</h4>
+                  <span id="posActiveUnitBadge" class="badge badge-success" style="margin-top: 4px;">0 сум / шт</span>
+                </div>
+              </div>
+
+              <div style="text-align: center; font-size: 12px; color: var(--text-muted); font-weight: 700;">КОЛИЧЕСТВО:</div>
+              <div class="pos-qty-stepper">
+                <button class="step-btn" onclick="stepPosQty(-1)">-</button>
+                <input class="qty-display-input" id="posQtyInput" type="number" min="1" value="1" oninput="onPosQtyChange()">
+                <button class="step-btn" onclick="stepPosQty(1)">+</button>
+              </div>
+
+              <div style="display: flex; justify-content: center; gap: 6px; margin-bottom: 16px;">
+                <button class="btn" style="padding: 4px 10px; font-size: 11px;" onclick="setPosQtyQuick(5)">+5</button>
+                <button class="btn" style="padding: 4px 10px; font-size: 11px;" onclick="setPosQtyQuick(10)">+10</button>
+                <button class="btn" style="padding: 4px 10px; font-size: 11px;" onclick="setPosQtyQuick(50)">+50</button>
+                <button class="btn" style="padding: 4px 10px; font-size: 11px;" onclick="setPosQtyQuick(100)">+100</button>
+              </div>
+
+              <div style="text-align: center; font-size: 11px; font-weight: 800; color: var(--primary); text-transform: uppercase;">Итого к оплате:</div>
+              <div class="pos-grand-total" id="posGrandTotalLabel">0 сум</div>
+
+              <div class="payment-chips">
+                <div class="pay-chip active" id="posPayCash" onclick="setPosPayment('cash')">💵 Наличные</div>
+                <div class="pay-chip" id="posPayClick" onclick="setPosPayment('click')">💳 Click / Карта</div>
+              </div>
+
+              <button class="btn btn-primary" style="width: 100%; padding: 14px; font-size: 16px; font-weight: 800;" onclick="executePOSSale()">
+                ⚡ Провести оплату в кассу
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. CRM ORDERS -->
+      <section class="page-view" id="view-orders">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button class="btn btn-primary" id="orderTabAll" onclick="setOrderFilter('ALL')">Все заказы</button>
+            <button class="btn" id="orderTabMine" onclick="setOrderFilter('MINE')" style="font-weight: 800; border-color: var(--primary);">👤 Только мои</button>
+            <button class="btn" id="orderTabProgress" onclick="setOrderFilter('in_progress')">🟡 В работе</button>
+            <button class="btn" id="orderTabReady" onclick="setOrderFilter('ready')">✅ Готовы</button>
+            <button class="btn" id="orderTabCompleted" onclick="setOrderFilter('completed')">🎉 Выданы</button>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <input id="orderSearchField" placeholder="🔍 Поиск клиента или заказа..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px; background: var(--bg-card);" oninput="renderOrdersTable()">
+            <button class="btn btn-primary" onclick="openOrderModal()">📦 + Оформить заказ</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="table-responsive">
+            <table id="ordersMainTable"></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. DAILY REVENUE -->
+      <section class="page-view" id="view-daily">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <div>
+            <h3 style="font-size: 18px; font-weight: 800;">📅 Дневная онлайн-выручка</h3>
+            <p style="font-size: 12.5px; color: var(--text-muted);">Автоматический расчёт кассы от проведенных в системе заказов</p>
+          </div>
+          <input type="date" id="dailyDatePicker" style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); font-weight: 700; background: var(--bg-card);" onchange="renderDailyView()">
+        </div>
+
+        <div class="grid-4" id="dailyStaffBreakdownGrid"></div>
+
+        <div class="card" style="border: 2px solid var(--primary-border); padding: 24px; margin-top: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+            <h3 style="font-size: 17px; font-weight: 800;">💵 Сводный расчёт фактической кассы за день</h3>
+            <button class="btn btn-primary" onclick="openZReportModal()">🧾 Сформировать Z-Отчёт кассы</button>
+          </div>
+          <div class="grid-4">
+            <div>
+              <span style="font-size: 12px; color: var(--text-muted); font-weight: 700;">Валовая выручка:</span>
+              <div class="num-cell" id="dailyGrossLabel" style="font-size: 22px; text-align: left; margin-top: 4px;">0 сум</div>
+            </div>
+            <div>
+              <span style="font-size: 12px; color: var(--primary); font-weight: 700;">Выдано дизайнерам (100%):</span>
+              <div class="num-cell negative" id="dailyDesignLabel" style="font-size: 22px; text-align: left; margin-top: 4px;">0 сум</div>
+            </div>
+            <div>
+              <span style="font-size: 12px; color: var(--accent-amber); font-weight: 700;">Расходы за день:</span>
+              <div class="num-cell" id="dailyExpenseLabel" style="font-size: 22px; color: var(--accent-amber); text-align: left; margin-top: 4px;">0 сум</div>
+            </div>
+            <div>
+              <span style="font-size: 12px; color: var(--accent-emerald); font-weight: 700;">ЧИСТАЯ КАССА НА РУКАХ:</span>
+              <div class="num-cell positive" id="dailyNetCashLabel" style="font-size: 26px; text-align: left; margin-top: 4px;">0 сум</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 16px;">
+          <div class="card-header">
+            <div>
+              <h3>↘ Все расходы за этот день</h3>
+              <p style="font-size: 11px; color: var(--text-muted);">Автоматически учитываются при расчёте чистой кассы за выбранный день</p>
+            </div>
+            <button class="btn btn-primary" onclick="openExpenseModal()">+ Добавить расход</button>
+          </div>
+          <div style="background: var(--bg-card-subtle); padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 10px; align-items: center;">
+            <span style="font-size: 12px; font-weight: 800; color: var(--text-muted);">БЫСТРЫЙ РАСХОД:</span>
+            <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="quickAddDayExpense('Обед', 35000, 'Обед и питание')">🍜 Обед 35 000</button>
+            <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="quickAddDayExpense('Обед', 45000, 'Обед и питание')">🍜 Обед 45 000</button>
+            <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="quickAddDayExpense('Такси / Доставка', 20000, 'Транспорт и доставка')">🚕 Такси 20 000</button>
+            <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="quickAddDayExpense('Бумага A4 SvetoCopy', 38000, 'Бумага и фотоматериалы')">📦 Бумага А4 38 000</button>
+            <button class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="quickAddDayExpense('Хоз. расходы / чай', 15000, 'Хозяйственные расходы')">☕ Хоз. расходы 15 000</button>
+          </div>
+          <div class="table-responsive"><table id="dailyExpensesTable"></table></div>
+        </div>
+      </section>
+
+      <!-- 4. MONTHLY REVENUE -->
+      <section class="page-view" id="view-monthly">
+        <div class="card">
+          <div class="card-header">
+            <h3>Помесячная выручка по дням</h3>
+            <button class="btn btn-success" onclick="exportIncomeCSV()">Экспорт CSV</button>
+          </div>
+          <div class="table-responsive"><table id="monthlyIncomeTable"></table></div>
+        </div>
+      </section>
+
+      <!-- 5. ANNUAL DASHBOARD -->
+      <section class="page-view active" id="view-dashboard">
+        <div class="grid-4" id="dashboardKpis"></div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <h3>Динамика 12 месяцев</h3>
+              <span style="font-size: 11px; color: var(--text-muted);">Выручка, расходы и чистая прибыль</span>
+            </div>
+            <div class="card-body">
+              <div style="height: 280px;"><canvas id="annualChartCanvas"></canvas></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h3>Структура расходов за год</h3></div>
+            <div class="card-body" id="annualExpenseBars" style="display: grid; gap: 12px;"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6. PAYROLL -->
+      <section class="page-view" id="view-payroll">
+        <div class="grid-4" id="payrollKpiGrid"></div>
+
+        <div class="card" style="margin-bottom: 20px;">
+          <div class="card-header">
+            <h3>Ведомость начислений и выплат сотрудникам</h3>
+            <button class="btn btn-success" onclick="exportPayrollCSV()">Экспорт CSV</button>
+          </div>
+          <div class="table-responsive"><table id="payrollMainTable"></table></div>
+        </div>
+      </section>
+
+      <!-- 7. EXPENSES -->
+      <section class="page-view" id="view-expenses">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3>Журнал расходов за месяц</h3>
+              <p style="font-size: 11px; color: var(--text-muted);">Автоматически пополняется через Telegram-бота @RasxodPoligrafiya_bot</p>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-success" onclick="syncWithTelegramBot()">🔄 Импорт </button>
+              <button class="btn btn-primary" onclick="addNewExpenseRow()">+ Добавить вручную</button>
+            </div>
+          </div>
+          <div class="table-responsive"><table id="expenseMainTable"></table></div>
+        </div>
+      </section>
+
+      <!-- 8. DEBTS -->
+      <section class="page-view" id="view-debts">
+        <div class="card">
+          <div class="card-header">
+            <h3>Реестр задолженностей клиентов</h3>
+            <button class="btn btn-primary" onclick="addNewDebtRow()">+ Добавить долг вручную</button>
+          </div>
+          <div class="table-responsive"><table id="debtsMainTable"></table></div>
+        </div>
+      </section>
+
+      <!-- 8.5. CLIENTS CRM -->
+      <section class="page-view" id="view-clients">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h3 style="font-size: 18px; font-weight: 800;">👥 База постоянных клиентов</h3>
+            <p style="font-size: 12.5px; color: var(--text-muted);">История всех заказов, LTV выручка и контактные данные</p>
+          </div>
+          <input id="clientSearchInput" placeholder="🔍 Поиск по имени или телефону..." style="padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px; background: var(--bg-card); min-width: 260px;" oninput="renderClientsView()">
+        </div>
+
+        <div class="grid-4" id="clientsKpiGrid"></div>
+
+        <div class="card" style="margin-top: 16px;">
+          <div class="table-responsive"><table id="clientsMainTable"></table></div>
+        </div>
+      </section>
+
+      <!-- 8.6. INVENTORY / STOCK -->
+      
+      <!-- 8. INVENTORY / WAREHOUSE -->
+      <section class="page-view" id="view-inventory">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <h3 style="font-size: 18px; font-weight: 800;">🏭 Склад, Сырьё и Расходные материалы</h3>
+            <p style="font-size: 12.5px; color: var(--text-muted);">Контроль остатков бумаги, красок, рамок и заготовок</p>
+          </div>
+          <button class="btn btn-primary" onclick="addNewInventoryItem()">+ Добавить материал</button>
+        </div>
+
+        <div class="grid-equal-3" id="inventoryCardsGrid" style="gap: 16px;"></div>
+
+        <div class="card" style="margin-top: 20px;">
+          <div class="card-header"><h3>Таблица остатков на складе</h3></div>
+          <div class="table-responsive"><table id="inventoryMainTable"></table></div>
+        </div>
+      </section>
+
+    
+      <!-- 9. SETTINGS -->
+      <section class="page-view" id="view-settings">
+        <div class="grid-equal-2">
+          <div class="card">
+            <div class="card-header"><h3>Сотрудники</h3><button class="btn btn-primary" onclick="addNewStaff()">+ Добавить</button></div>
+            <div class="card-body" id="settingsStaffList" style="display: grid; gap: 8px;"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><h3>Статьи расходов</h3><button class="btn btn-primary" onclick="addExpenseCategoryItem()">+ Добавить</button></div>
+            <div class="card-body" id="settingsCatList" style="display: grid; gap: 8px;"></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px; border: 2px solid var(--primary-border);">
+          <div class="card-header">
+            <div>
+              <h3>🕵️‍♂️ Журнал безопасности и истории действий (Audit Log)</h3>
+              <p style="font-size: 11.5px; color: var(--text-muted);">Фиксация всех созданий, правок, удалений и изменений ставок сотрудниками</p>
+            </div>
+            <input id="auditLogSearch" placeholder="🔍 Поиск по журналу..." style="padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 12px; background: var(--bg-card);" oninput="renderAuditLogTable()">
+          </div>
+          <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+            <table id="auditLogMainTable"></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 10. EMPLOYEE PORTAL -->
+      <section class="page-view" id="view-portal">
+        <div class="card" style="background: linear-gradient(135deg, #dc2626, #991b1b); color: #fff; padding: 24px; margin-bottom: 20px; border: none;">
+          <h3 style="font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 8px;">⚡ Утренний Бонус +1 000 000 сум (Приход до 8:30)</h3>
+          <p style="font-size: 13px; opacity: 0.9; margin-bottom: 16px;">Фиксируйте присутствие на рабочем месте до 8:30 утра для автоматического бонуса к зарплате.</p>
+          <button class="btn" style="background: #ffffff; color: #dc2626; font-weight: 800; border: none;" onclick="trigger830Checkin()">
+            📍 Отметиться (GPS + Фото экрана)
+          </button>
+          <div id="portalCheckinStatus" style="margin-top: 10px; font-size: 12.5px; font-weight: 700;"></div>
+        </div>
+
+        <div class="grid-4" id="portalKpiGrid"></div>
+
+        <div class="card" style="margin-top: 16px;">
+          <div class="card-header"><h3>Мои дневные начисления за месяц</h3></div>
+          <div class="table-responsive"><table id="portalHistoryTable"></table></div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>

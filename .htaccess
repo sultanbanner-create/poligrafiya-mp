@@ -1,0 +1,2 @@
+RewriteEngine On
+RewriteRule ^api/state$ api/state.php [L,QSA]
